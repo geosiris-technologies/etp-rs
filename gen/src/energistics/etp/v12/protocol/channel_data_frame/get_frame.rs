@@ -3,18 +3,19 @@
 #![allow(unused_imports)]
 #![allow(non_camel_case_types)]
 use crate::helpers::*;
-use apache_avro::{from_avro_datum, from_value, AvroResult};
 use apache_avro::{Error, Schema};
 use bytes;
 use derivative::Derivative;
 use std::collections::HashMap;
-use std::io::Read;
 use std::time::SystemTime;
 
 use crate::energistics::etp::v12::datatypes::object::index_interval::IndexInterval;
 use crate::energistics::etp::v12::datatypes::uuid::{random_uuid, Uuid};
 use crate::helpers::ETPMetadata;
 use crate::helpers::Schemable;
+use crate::protocols::ProtocolMessage;
+use apache_avro::{from_avro_datum, from_value, AvroResult};
+use std::io::Read;
 
 #[derive(Debug, PartialEq, Clone, serde::Deserialize, serde::Serialize, Derivative)]
 #[serde(rename_all = "PascalCase")]
@@ -38,17 +39,30 @@ pub struct GetFrame {
     pub requested_secondary_intervals: Vec<IndexInterval>,
 }
 
-impl Schemable for GetFrame {
-    fn avro_schema() -> Option<Schema> {
-        match Schema::parse_str(AVRO_SCHEMA) {
-            Ok(result) => Some(result),
-            Err(e) => {
-                panic!("{:?}", e);
-            }
+fn getframe_avro_schema() -> Option<Schema> {
+    match Schema::parse_str(AVRO_SCHEMA) {
+        Ok(result) => Some(result),
+        Err(e) => {
+            panic!("{:?}", e);
         }
     }
-    fn avro_schema_str() -> &'static str {
+}
+
+impl Schemable for GetFrame {
+    fn avro_schema(&self) -> Option<Schema> {
+        getframe_avro_schema()
+    }
+    fn avro_schema_str(&self) -> &'static str {
         AVRO_SCHEMA
+    }
+}
+
+impl AvroSerializable for GetFrame {}
+
+impl AvroDeserializable for GetFrame {
+    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<GetFrame> {
+        let record = from_avro_datum(&getframe_avro_schema().unwrap(), input, None).unwrap();
+        from_value::<GetFrame>(&record)
     }
 }
 
@@ -68,18 +82,19 @@ impl ETPMetadata for GetFrame {
     fn multipart_flag(&self) -> bool {
         false
     }
+}
 
-    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<GetFrame> {
-        let record = from_avro_datum(&GetFrame::avro_schema().unwrap(), input, None).unwrap();
-        from_value::<GetFrame>(&record)
+impl GetFrame {
+    pub fn as_protocol_message(&self) -> ProtocolMessage {
+        ProtocolMessage::ChannelDataFrame_GetFrame(self.clone())
     }
 }
 
 impl GetFrame {
     /* Protocol 2, MessageType : 3 */
-    pub fn default_with_params(requested_interval: IndexInterval) -> GetFrame {
+    pub fn default_with_params(uri: String, requested_interval: IndexInterval) -> GetFrame {
         GetFrame {
-            uri: "".to_string(),
+            uri,
             include_all_channel_secondary_indexes: false,
             requested_interval,
             request_uuid: random_uuid(),

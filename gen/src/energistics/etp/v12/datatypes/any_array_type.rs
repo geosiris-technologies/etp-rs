@@ -2,26 +2,37 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 #![allow(unused_imports)]
 #![allow(non_camel_case_types)]
-use crate::helpers::Schemable;
 use crate::helpers::*;
 use apache_avro::{Error, Schema};
 use bytes;
 use derivative::Derivative;
 use std::collections::HashMap;
-use std::fmt;
-use std::slice::Iter;
 use std::time::SystemTime;
+
+use crate::helpers::Schemable;
+use apache_avro::{from_avro_datum, from_value, AvroResult};
+use std::fmt;
+use std::io::Read;
+use std::slice::Iter;
+use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum AnyArrayType {
     /* None */
+    #[serde(rename(serialize = "arrayOfBoolean", deserialize = "arrayOfBoolean"))]
     ArrayOfBoolean,
+    #[serde(rename(serialize = "arrayOfInt", deserialize = "arrayOfInt"))]
     ArrayOfInt,
+    #[serde(rename(serialize = "arrayOfLong", deserialize = "arrayOfLong"))]
     ArrayOfLong,
+    #[serde(rename(serialize = "arrayOfFloat", deserialize = "arrayOfFloat"))]
     ArrayOfFloat,
+    #[serde(rename(serialize = "arrayOfDouble", deserialize = "arrayOfDouble"))]
     ArrayOfDouble,
+    #[serde(rename(serialize = "arrayOfString", deserialize = "arrayOfString"))]
     ArrayOfString,
+    #[serde(rename(serialize = "bytes", deserialize = "bytes"))]
     Bytes,
 }
 
@@ -40,6 +51,22 @@ impl fmt::Display for AnyArrayType {
                 AnyArrayType::Bytes => "bytes",
             }
         )
+    }
+}
+
+impl FromStr for AnyArrayType {
+    type Err = ();
+    fn from_str(input: &str) -> Result<AnyArrayType, Self::Err> {
+        match input {
+            "arrayOfBoolean" => Ok(AnyArrayType::ArrayOfBoolean),
+            "arrayOfInt" => Ok(AnyArrayType::ArrayOfInt),
+            "arrayOfLong" => Ok(AnyArrayType::ArrayOfLong),
+            "arrayOfFloat" => Ok(AnyArrayType::ArrayOfFloat),
+            "arrayOfDouble" => Ok(AnyArrayType::ArrayOfDouble),
+            "arrayOfString" => Ok(AnyArrayType::ArrayOfString),
+            "bytes" => Ok(AnyArrayType::Bytes),
+            _ => Err(()),
+        }
     }
 }
 

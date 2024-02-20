@@ -3,17 +3,18 @@
 #![allow(unused_imports)]
 #![allow(non_camel_case_types)]
 use crate::helpers::*;
-use apache_avro::{from_avro_datum, from_value, AvroResult};
 use apache_avro::{Error, Schema};
 use bytes;
 use derivative::Derivative;
 use std::collections::HashMap;
-use std::io::Read;
 use std::time::SystemTime;
 
 use crate::energistics::etp::v12::datatypes::uuid::{random_uuid, Uuid};
 use crate::helpers::ETPMetadata;
 use crate::helpers::Schemable;
+use crate::protocols::ProtocolMessage;
+use apache_avro::{from_avro_datum, from_value, AvroResult};
+use std::io::Read;
 
 #[derive(Debug, PartialEq, Clone, serde::Deserialize, serde::Serialize, Derivative)]
 #[serde(rename_all = "PascalCase")]
@@ -23,17 +24,31 @@ pub struct RollbackTransaction {
     pub transaction_uuid: Uuid,
 }
 
-impl Schemable for RollbackTransaction {
-    fn avro_schema() -> Option<Schema> {
-        match Schema::parse_str(AVRO_SCHEMA) {
-            Ok(result) => Some(result),
-            Err(e) => {
-                panic!("{:?}", e);
-            }
+fn rollbacktransaction_avro_schema() -> Option<Schema> {
+    match Schema::parse_str(AVRO_SCHEMA) {
+        Ok(result) => Some(result),
+        Err(e) => {
+            panic!("{:?}", e);
         }
     }
-    fn avro_schema_str() -> &'static str {
+}
+
+impl Schemable for RollbackTransaction {
+    fn avro_schema(&self) -> Option<Schema> {
+        rollbacktransaction_avro_schema()
+    }
+    fn avro_schema_str(&self) -> &'static str {
         AVRO_SCHEMA
+    }
+}
+
+impl AvroSerializable for RollbackTransaction {}
+
+impl AvroDeserializable for RollbackTransaction {
+    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<RollbackTransaction> {
+        let record =
+            from_avro_datum(&rollbacktransaction_avro_schema().unwrap(), input, None).unwrap();
+        from_value::<RollbackTransaction>(&record)
     }
 }
 
@@ -53,11 +68,11 @@ impl ETPMetadata for RollbackTransaction {
     fn multipart_flag(&self) -> bool {
         false
     }
+}
 
-    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<RollbackTransaction> {
-        let record =
-            from_avro_datum(&RollbackTransaction::avro_schema().unwrap(), input, None).unwrap();
-        from_value::<RollbackTransaction>(&record)
+impl RollbackTransaction {
+    pub fn as_protocol_message(&self) -> ProtocolMessage {
+        ProtocolMessage::Transaction_RollbackTransaction(self.clone())
     }
 }
 

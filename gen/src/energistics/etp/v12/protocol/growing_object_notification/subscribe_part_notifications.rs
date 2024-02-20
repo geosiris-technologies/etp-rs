@@ -3,17 +3,18 @@
 #![allow(unused_imports)]
 #![allow(non_camel_case_types)]
 use crate::helpers::*;
-use apache_avro::{from_avro_datum, from_value, AvroResult};
 use apache_avro::{Error, Schema};
 use bytes;
 use derivative::Derivative;
 use std::collections::HashMap;
-use std::io::Read;
 use std::time::SystemTime;
 
 use crate::energistics::etp::v12::datatypes::object::subscription_info::SubscriptionInfo;
 use crate::helpers::ETPMetadata;
 use crate::helpers::Schemable;
+use crate::protocols::ProtocolMessage;
+use apache_avro::{from_avro_datum, from_value, AvroResult};
+use std::io::Read;
 
 #[derive(Debug, PartialEq, Clone, serde::Deserialize, serde::Serialize, Derivative)]
 #[serde(rename_all = "PascalCase")]
@@ -22,17 +23,35 @@ pub struct SubscribePartNotifications {
     pub request: HashMap<String, SubscriptionInfo>,
 }
 
-impl Schemable for SubscribePartNotifications {
-    fn avro_schema() -> Option<Schema> {
-        match Schema::parse_str(AVRO_SCHEMA) {
-            Ok(result) => Some(result),
-            Err(e) => {
-                panic!("{:?}", e);
-            }
+fn subscribepartnotifications_avro_schema() -> Option<Schema> {
+    match Schema::parse_str(AVRO_SCHEMA) {
+        Ok(result) => Some(result),
+        Err(e) => {
+            panic!("{:?}", e);
         }
     }
-    fn avro_schema_str() -> &'static str {
+}
+
+impl Schemable for SubscribePartNotifications {
+    fn avro_schema(&self) -> Option<Schema> {
+        subscribepartnotifications_avro_schema()
+    }
+    fn avro_schema_str(&self) -> &'static str {
         AVRO_SCHEMA
+    }
+}
+
+impl AvroSerializable for SubscribePartNotifications {}
+
+impl AvroDeserializable for SubscribePartNotifications {
+    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<SubscribePartNotifications> {
+        let record = from_avro_datum(
+            &subscribepartnotifications_avro_schema().unwrap(),
+            input,
+            None,
+        )
+        .unwrap();
+        from_value::<SubscribePartNotifications>(&record)
     }
 }
 
@@ -52,15 +71,11 @@ impl ETPMetadata for SubscribePartNotifications {
     fn multipart_flag(&self) -> bool {
         false
     }
+}
 
-    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<SubscribePartNotifications> {
-        let record = from_avro_datum(
-            &SubscribePartNotifications::avro_schema().unwrap(),
-            input,
-            None,
-        )
-        .unwrap();
-        from_value::<SubscribePartNotifications>(&record)
+impl SubscribePartNotifications {
+    pub fn as_protocol_message(&self) -> ProtocolMessage {
+        ProtocolMessage::GrowingObjectNotification_SubscribePartNotifications(self.clone())
     }
 }
 

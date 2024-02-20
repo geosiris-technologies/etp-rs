@@ -23,3 +23,4 @@ derivative = "2.2.0"
 serde = { version = "1.0.151", features = ["derive"] }
 serde_json = "1.0.105"
 uuid = { version = "1.4.1", features = ["v4", "serde"]}
+enum_dispatch = "0.3.12"

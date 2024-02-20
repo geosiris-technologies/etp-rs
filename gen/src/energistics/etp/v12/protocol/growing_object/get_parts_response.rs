@@ -3,17 +3,18 @@
 #![allow(unused_imports)]
 #![allow(non_camel_case_types)]
 use crate::helpers::*;
-use apache_avro::{from_avro_datum, from_value, AvroResult};
 use apache_avro::{Error, Schema};
 use bytes;
 use derivative::Derivative;
 use std::collections::HashMap;
-use std::io::Read;
 use std::time::SystemTime;
 
 use crate::energistics::etp::v12::datatypes::object::object_part::ObjectPart;
 use crate::helpers::ETPMetadata;
 use crate::helpers::Schemable;
+use crate::protocols::ProtocolMessage;
+use apache_avro::{from_avro_datum, from_value, AvroResult};
+use std::io::Read;
 
 #[derive(Debug, PartialEq, Clone, serde::Deserialize, serde::Serialize, Derivative)]
 #[serde(rename_all = "PascalCase")]
@@ -29,17 +30,31 @@ pub struct GetPartsResponse {
     pub parts: HashMap<String, ObjectPart>,
 }
 
-impl Schemable for GetPartsResponse {
-    fn avro_schema() -> Option<Schema> {
-        match Schema::parse_str(AVRO_SCHEMA) {
-            Ok(result) => Some(result),
-            Err(e) => {
-                panic!("{:?}", e);
-            }
+fn getpartsresponse_avro_schema() -> Option<Schema> {
+    match Schema::parse_str(AVRO_SCHEMA) {
+        Ok(result) => Some(result),
+        Err(e) => {
+            panic!("{:?}", e);
         }
     }
-    fn avro_schema_str() -> &'static str {
+}
+
+impl Schemable for GetPartsResponse {
+    fn avro_schema(&self) -> Option<Schema> {
+        getpartsresponse_avro_schema()
+    }
+    fn avro_schema_str(&self) -> &'static str {
         AVRO_SCHEMA
+    }
+}
+
+impl AvroSerializable for GetPartsResponse {}
+
+impl AvroDeserializable for GetPartsResponse {
+    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<GetPartsResponse> {
+        let record =
+            from_avro_datum(&getpartsresponse_avro_schema().unwrap(), input, None).unwrap();
+        from_value::<GetPartsResponse>(&record)
     }
 }
 
@@ -59,19 +74,19 @@ impl ETPMetadata for GetPartsResponse {
     fn multipart_flag(&self) -> bool {
         true
     }
+}
 
-    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<GetPartsResponse> {
-        let record =
-            from_avro_datum(&GetPartsResponse::avro_schema().unwrap(), input, None).unwrap();
-        from_value::<GetPartsResponse>(&record)
+impl GetPartsResponse {
+    pub fn as_protocol_message(&self) -> ProtocolMessage {
+        ProtocolMessage::GrowingObject_GetPartsResponse(self.clone())
     }
 }
 
-impl Default for GetPartsResponse {
+impl GetPartsResponse {
     /* Protocol 6, MessageType : 6 */
-    fn default() -> GetPartsResponse {
+    pub fn default_with_params(uri: String) -> GetPartsResponse {
         GetPartsResponse {
-            uri: "".to_string(),
+            uri,
             format: "xml".to_string(),
             parts: HashMap::new(),
         }

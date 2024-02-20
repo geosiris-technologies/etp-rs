@@ -3,17 +3,18 @@
 #![allow(unused_imports)]
 #![allow(non_camel_case_types)]
 use crate::helpers::*;
-use apache_avro::{from_avro_datum, from_value, AvroResult};
 use apache_avro::{Error, Schema};
 use bytes;
 use derivative::Derivative;
 use std::collections::HashMap;
-use std::io::Read;
 use std::time::SystemTime;
 
 use crate::energistics::etp::v12::datatypes::object::parts_metadata_info::PartsMetadataInfo;
 use crate::helpers::ETPMetadata;
 use crate::helpers::Schemable;
+use crate::protocols::ProtocolMessage;
+use apache_avro::{from_avro_datum, from_value, AvroResult};
+use std::io::Read;
 
 #[derive(Debug, PartialEq, Clone, serde::Deserialize, serde::Serialize, Derivative)]
 #[serde(rename_all = "PascalCase")]
@@ -22,17 +23,35 @@ pub struct GetPartsMetadataResponse {
     pub metadata: HashMap<String, PartsMetadataInfo>,
 }
 
-impl Schemable for GetPartsMetadataResponse {
-    fn avro_schema() -> Option<Schema> {
-        match Schema::parse_str(AVRO_SCHEMA) {
-            Ok(result) => Some(result),
-            Err(e) => {
-                panic!("{:?}", e);
-            }
+fn getpartsmetadataresponse_avro_schema() -> Option<Schema> {
+    match Schema::parse_str(AVRO_SCHEMA) {
+        Ok(result) => Some(result),
+        Err(e) => {
+            panic!("{:?}", e);
         }
     }
-    fn avro_schema_str() -> &'static str {
+}
+
+impl Schemable for GetPartsMetadataResponse {
+    fn avro_schema(&self) -> Option<Schema> {
+        getpartsmetadataresponse_avro_schema()
+    }
+    fn avro_schema_str(&self) -> &'static str {
         AVRO_SCHEMA
+    }
+}
+
+impl AvroSerializable for GetPartsMetadataResponse {}
+
+impl AvroDeserializable for GetPartsMetadataResponse {
+    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<GetPartsMetadataResponse> {
+        let record = from_avro_datum(
+            &getpartsmetadataresponse_avro_schema().unwrap(),
+            input,
+            None,
+        )
+        .unwrap();
+        from_value::<GetPartsMetadataResponse>(&record)
     }
 }
 
@@ -52,15 +71,11 @@ impl ETPMetadata for GetPartsMetadataResponse {
     fn multipart_flag(&self) -> bool {
         true
     }
+}
 
-    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<GetPartsMetadataResponse> {
-        let record = from_avro_datum(
-            &GetPartsMetadataResponse::avro_schema().unwrap(),
-            input,
-            None,
-        )
-        .unwrap();
-        from_value::<GetPartsMetadataResponse>(&record)
+impl GetPartsMetadataResponse {
+    pub fn as_protocol_message(&self) -> ProtocolMessage {
+        ProtocolMessage::GrowingObject_GetPartsMetadataResponse(self.clone())
     }
 }
 

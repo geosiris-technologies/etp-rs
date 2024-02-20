@@ -3,17 +3,18 @@
 #![allow(unused_imports)]
 #![allow(non_camel_case_types)]
 use crate::helpers::*;
-use apache_avro::{from_avro_datum, from_value, AvroResult};
 use apache_avro::{Error, Schema};
 use bytes;
 use derivative::Derivative;
 use std::collections::HashMap;
-use std::io::Read;
 use std::time::SystemTime;
 
 use crate::energistics::etp::v12::datatypes::object::object_part::ObjectPart;
 use crate::helpers::ETPMetadata;
 use crate::helpers::Schemable;
+use crate::protocols::ProtocolMessage;
+use apache_avro::{from_avro_datum, from_value, AvroResult};
+use std::io::Read;
 
 #[derive(Debug, PartialEq, Clone, serde::Deserialize, serde::Serialize, Derivative)]
 #[serde(rename_all = "PascalCase")]
@@ -29,17 +30,30 @@ pub struct PutParts {
     pub parts: HashMap<String, ObjectPart>,
 }
 
-impl Schemable for PutParts {
-    fn avro_schema() -> Option<Schema> {
-        match Schema::parse_str(AVRO_SCHEMA) {
-            Ok(result) => Some(result),
-            Err(e) => {
-                panic!("{:?}", e);
-            }
+fn putparts_avro_schema() -> Option<Schema> {
+    match Schema::parse_str(AVRO_SCHEMA) {
+        Ok(result) => Some(result),
+        Err(e) => {
+            panic!("{:?}", e);
         }
     }
-    fn avro_schema_str() -> &'static str {
+}
+
+impl Schemable for PutParts {
+    fn avro_schema(&self) -> Option<Schema> {
+        putparts_avro_schema()
+    }
+    fn avro_schema_str(&self) -> &'static str {
         AVRO_SCHEMA
+    }
+}
+
+impl AvroSerializable for PutParts {}
+
+impl AvroDeserializable for PutParts {
+    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<PutParts> {
+        let record = from_avro_datum(&putparts_avro_schema().unwrap(), input, None).unwrap();
+        from_value::<PutParts>(&record)
     }
 }
 
@@ -59,18 +73,19 @@ impl ETPMetadata for PutParts {
     fn multipart_flag(&self) -> bool {
         false
     }
+}
 
-    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<PutParts> {
-        let record = from_avro_datum(&PutParts::avro_schema().unwrap(), input, None).unwrap();
-        from_value::<PutParts>(&record)
+impl PutParts {
+    pub fn as_protocol_message(&self) -> ProtocolMessage {
+        ProtocolMessage::GrowingObject_PutParts(self.clone())
     }
 }
 
-impl Default for PutParts {
+impl PutParts {
     /* Protocol 6, MessageType : 5 */
-    fn default() -> PutParts {
+    pub fn default_with_params(uri: String) -> PutParts {
         PutParts {
-            uri: "".to_string(),
+            uri,
             format: "xml".to_string(),
             parts: HashMap::new(),
         }

@@ -3,12 +3,10 @@
 #![allow(unused_imports)]
 #![allow(non_camel_case_types)]
 use crate::helpers::*;
-use apache_avro::{from_avro_datum, from_value, AvroResult};
 use apache_avro::{Error, Schema};
 use bytes;
 use derivative::Derivative;
 use std::collections::HashMap;
-use std::io::Read;
 use std::time::SystemTime;
 
 use crate::energistics::etp::v12::datatypes::object::index_interval::IndexInterval;
@@ -16,6 +14,9 @@ use crate::energistics::etp::v12::datatypes::object::object_part::ObjectPart;
 use crate::energistics::etp::v12::datatypes::uuid::{random_uuid, Uuid};
 use crate::helpers::ETPMetadata;
 use crate::helpers::Schemable;
+use crate::protocols::ProtocolMessage;
+use apache_avro::{from_avro_datum, from_value, AvroResult};
+use std::io::Read;
 
 #[derive(Debug, PartialEq, Clone, serde::Deserialize, serde::Serialize, Derivative)]
 #[serde(rename_all = "PascalCase")]
@@ -44,17 +45,31 @@ pub struct PartsReplacedByRange {
     pub parts: Vec<ObjectPart>,
 }
 
-impl Schemable for PartsReplacedByRange {
-    fn avro_schema() -> Option<Schema> {
-        match Schema::parse_str(AVRO_SCHEMA) {
-            Ok(result) => Some(result),
-            Err(e) => {
-                panic!("{:?}", e);
-            }
+fn partsreplacedbyrange_avro_schema() -> Option<Schema> {
+    match Schema::parse_str(AVRO_SCHEMA) {
+        Ok(result) => Some(result),
+        Err(e) => {
+            panic!("{:?}", e);
         }
     }
-    fn avro_schema_str() -> &'static str {
+}
+
+impl Schemable for PartsReplacedByRange {
+    fn avro_schema(&self) -> Option<Schema> {
+        partsreplacedbyrange_avro_schema()
+    }
+    fn avro_schema_str(&self) -> &'static str {
         AVRO_SCHEMA
+    }
+}
+
+impl AvroSerializable for PartsReplacedByRange {}
+
+impl AvroDeserializable for PartsReplacedByRange {
+    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<PartsReplacedByRange> {
+        let record =
+            from_avro_datum(&partsreplacedbyrange_avro_schema().unwrap(), input, None).unwrap();
+        from_value::<PartsReplacedByRange>(&record)
     }
 }
 
@@ -74,19 +89,22 @@ impl ETPMetadata for PartsReplacedByRange {
     fn multipart_flag(&self) -> bool {
         true
     }
+}
 
-    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<PartsReplacedByRange> {
-        let record =
-            from_avro_datum(&PartsReplacedByRange::avro_schema().unwrap(), input, None).unwrap();
-        from_value::<PartsReplacedByRange>(&record)
+impl PartsReplacedByRange {
+    pub fn as_protocol_message(&self) -> ProtocolMessage {
+        ProtocolMessage::GrowingObjectNotification_PartsReplacedByRange(self.clone())
     }
 }
 
 impl PartsReplacedByRange {
     /* Protocol 7, MessageType : 6 */
-    pub fn default_with_params(deleted_interval: IndexInterval) -> PartsReplacedByRange {
+    pub fn default_with_params(
+        uri: String,
+        deleted_interval: IndexInterval,
+    ) -> PartsReplacedByRange {
         PartsReplacedByRange {
-            uri: "".to_string(),
+            uri,
             request_uuid: random_uuid(),
             change_time: time_to_etp(SystemTime::now()),
             deleted_interval,

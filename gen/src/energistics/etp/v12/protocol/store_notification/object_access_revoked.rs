@@ -3,17 +3,18 @@
 #![allow(unused_imports)]
 #![allow(non_camel_case_types)]
 use crate::helpers::*;
-use apache_avro::{from_avro_datum, from_value, AvroResult};
 use apache_avro::{Error, Schema};
 use bytes;
 use derivative::Derivative;
 use std::collections::HashMap;
-use std::io::Read;
 use std::time::SystemTime;
 
 use crate::energistics::etp::v12::datatypes::uuid::{random_uuid, Uuid};
 use crate::helpers::ETPMetadata;
 use crate::helpers::Schemable;
+use crate::protocols::ProtocolMessage;
+use apache_avro::{from_avro_datum, from_value, AvroResult};
+use std::io::Read;
 
 #[derive(Debug, PartialEq, Clone, serde::Deserialize, serde::Serialize, Derivative)]
 #[serde(rename_all = "PascalCase")]
@@ -29,17 +30,31 @@ pub struct ObjectAccessRevoked {
     pub request_uuid: Uuid,
 }
 
-impl Schemable for ObjectAccessRevoked {
-    fn avro_schema() -> Option<Schema> {
-        match Schema::parse_str(AVRO_SCHEMA) {
-            Ok(result) => Some(result),
-            Err(e) => {
-                panic!("{:?}", e);
-            }
+fn objectaccessrevoked_avro_schema() -> Option<Schema> {
+    match Schema::parse_str(AVRO_SCHEMA) {
+        Ok(result) => Some(result),
+        Err(e) => {
+            panic!("{:?}", e);
         }
     }
-    fn avro_schema_str() -> &'static str {
+}
+
+impl Schemable for ObjectAccessRevoked {
+    fn avro_schema(&self) -> Option<Schema> {
+        objectaccessrevoked_avro_schema()
+    }
+    fn avro_schema_str(&self) -> &'static str {
         AVRO_SCHEMA
+    }
+}
+
+impl AvroSerializable for ObjectAccessRevoked {}
+
+impl AvroDeserializable for ObjectAccessRevoked {
+    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<ObjectAccessRevoked> {
+        let record =
+            from_avro_datum(&objectaccessrevoked_avro_schema().unwrap(), input, None).unwrap();
+        from_value::<ObjectAccessRevoked>(&record)
     }
 }
 
@@ -59,19 +74,19 @@ impl ETPMetadata for ObjectAccessRevoked {
     fn multipart_flag(&self) -> bool {
         false
     }
+}
 
-    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<ObjectAccessRevoked> {
-        let record =
-            from_avro_datum(&ObjectAccessRevoked::avro_schema().unwrap(), input, None).unwrap();
-        from_value::<ObjectAccessRevoked>(&record)
+impl ObjectAccessRevoked {
+    pub fn as_protocol_message(&self) -> ProtocolMessage {
+        ProtocolMessage::StoreNotification_ObjectAccessRevoked(self.clone())
     }
 }
 
-impl Default for ObjectAccessRevoked {
+impl ObjectAccessRevoked {
     /* Protocol 5, MessageType : 5 */
-    fn default() -> ObjectAccessRevoked {
+    pub fn default_with_params(uri: String) -> ObjectAccessRevoked {
         ObjectAccessRevoked {
-            uri: "".to_string(),
+            uri,
             change_time: time_to_etp(SystemTime::now()),
             request_uuid: random_uuid(),
         }

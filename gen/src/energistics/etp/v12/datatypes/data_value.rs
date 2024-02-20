@@ -2,6 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 #![allow(unused_imports)]
 #![allow(non_camel_case_types)]
+use crate::helpers::*;
+use apache_avro::{Error, Schema};
+use bytes;
+use derivative::Derivative;
+use std::collections::HashMap;
+use std::time::SystemTime;
+
 use crate::energistics::etp::v12::datatypes::any_sparse_array::AnySparseArray;
 use crate::energistics::etp::v12::datatypes::array_of_boolean::ArrayOfBoolean;
 use crate::energistics::etp::v12::datatypes::array_of_bytes::ArrayOfBytes;
@@ -14,12 +21,8 @@ use crate::energistics::etp::v12::datatypes::array_of_nullable_int::ArrayOfNulla
 use crate::energistics::etp::v12::datatypes::array_of_nullable_long::ArrayOfNullableLong;
 use crate::energistics::etp::v12::datatypes::array_of_string::ArrayOfString;
 use crate::helpers::Schemable;
-use crate::helpers::*;
-use apache_avro::{Error, Schema};
-use bytes;
-use derivative::Derivative;
-use std::collections::HashMap;
-use std::time::SystemTime;
+use apache_avro::{from_avro_datum, from_value, AvroResult};
+use std::io::Read;
 #[derive(Debug, PartialEq, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum UnionBooleanIntLongFloatDoubleStringArrayOfBooleanArrayOfNullableBooleanArrayOfIntArrayOfNullableIntArrayOfLongArrayOfNullableLongArrayOfFloatArrayOfDoubleArrayOfStringArrayOfBytesBytesAnySparseArray
@@ -47,23 +50,35 @@ pub enum UnionBooleanIntLongFloatDoubleStringArrayOfBooleanArrayOfNullableBoolea
 #[derive(Debug, PartialEq, Clone, serde::Deserialize, serde::Serialize, Derivative)]
 #[serde(rename_all = "PascalCase")]
 pub struct DataValue{
-
 	#[serde(rename = "item")]
     pub item: Option<UnionBooleanIntLongFloatDoubleStringArrayOfBooleanArrayOfNullableBooleanArrayOfIntArrayOfNullableIntArrayOfLongArrayOfNullableLongArrayOfFloatArrayOfDoubleArrayOfStringArrayOfBytesBytesAnySparseArray>,
 
 }
 
-impl Schemable for DataValue {
-    fn avro_schema() -> Option<Schema> {
-        match Schema::parse_str(AVRO_SCHEMA) {
-            Ok(result) => Some(result),
-            Err(e) => {
-                panic!("{:?}", e);
-            }
+fn datavalue_avro_schema() -> Option<Schema> {
+    match Schema::parse_str(AVRO_SCHEMA) {
+        Ok(result) => Some(result),
+        Err(e) => {
+            panic!("{:?}", e);
         }
     }
-    fn avro_schema_str() -> &'static str {
+}
+
+impl Schemable for DataValue {
+    fn avro_schema(&self) -> Option<Schema> {
+        datavalue_avro_schema()
+    }
+    fn avro_schema_str(&self) -> &'static str {
         AVRO_SCHEMA
+    }
+}
+
+impl AvroSerializable for DataValue {}
+
+impl AvroDeserializable for DataValue {
+    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<DataValue> {
+        let record = from_avro_datum(&datavalue_avro_schema().unwrap(), input, None).unwrap();
+        from_value::<DataValue>(&record)
     }
 }
 

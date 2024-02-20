@@ -3,17 +3,18 @@
 #![allow(unused_imports)]
 #![allow(non_camel_case_types)]
 use crate::helpers::*;
-use apache_avro::{from_avro_datum, from_value, AvroResult};
 use apache_avro::{Error, Schema};
 use bytes;
 use derivative::Derivative;
 use std::collections::HashMap;
-use std::io::Read;
 use std::time::SystemTime;
 
 use crate::energistics::etp::v12::datatypes::data_array_types::put_uninitialized_data_array_type::PutUninitializedDataArrayType;
 use crate::helpers::ETPMetadata;
 use crate::helpers::Schemable;
+use crate::protocols::ProtocolMessage;
+use apache_avro::{from_avro_datum, from_value, AvroResult};
+use std::io::Read;
 
 #[derive(Debug, PartialEq, Clone, serde::Deserialize, serde::Serialize, Derivative)]
 #[serde(rename_all = "PascalCase")]
@@ -22,17 +23,35 @@ pub struct PutUninitializedDataArrays {
     pub data_arrays: HashMap<String, PutUninitializedDataArrayType>,
 }
 
-impl Schemable for PutUninitializedDataArrays {
-    fn avro_schema() -> Option<Schema> {
-        match Schema::parse_str(AVRO_SCHEMA) {
-            Ok(result) => Some(result),
-            Err(e) => {
-                panic!("{:?}", e);
-            }
+fn putuninitializeddataarrays_avro_schema() -> Option<Schema> {
+    match Schema::parse_str(AVRO_SCHEMA) {
+        Ok(result) => Some(result),
+        Err(e) => {
+            panic!("{:?}", e);
         }
     }
-    fn avro_schema_str() -> &'static str {
+}
+
+impl Schemable for PutUninitializedDataArrays {
+    fn avro_schema(&self) -> Option<Schema> {
+        putuninitializeddataarrays_avro_schema()
+    }
+    fn avro_schema_str(&self) -> &'static str {
         AVRO_SCHEMA
+    }
+}
+
+impl AvroSerializable for PutUninitializedDataArrays {}
+
+impl AvroDeserializable for PutUninitializedDataArrays {
+    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<PutUninitializedDataArrays> {
+        let record = from_avro_datum(
+            &putuninitializeddataarrays_avro_schema().unwrap(),
+            input,
+            None,
+        )
+        .unwrap();
+        from_value::<PutUninitializedDataArrays>(&record)
     }
 }
 
@@ -52,15 +71,11 @@ impl ETPMetadata for PutUninitializedDataArrays {
     fn multipart_flag(&self) -> bool {
         false
     }
+}
 
-    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<PutUninitializedDataArrays> {
-        let record = from_avro_datum(
-            &PutUninitializedDataArrays::avro_schema().unwrap(),
-            input,
-            None,
-        )
-        .unwrap();
-        from_value::<PutUninitializedDataArrays>(&record)
+impl PutUninitializedDataArrays {
+    pub fn as_protocol_message(&self) -> ProtocolMessage {
+        ProtocolMessage::DataArray_PutUninitializedDataArrays(self.clone())
     }
 }
 

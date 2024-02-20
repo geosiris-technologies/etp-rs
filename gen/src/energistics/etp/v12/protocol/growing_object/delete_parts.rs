@@ -3,16 +3,17 @@
 #![allow(unused_imports)]
 #![allow(non_camel_case_types)]
 use crate::helpers::*;
-use apache_avro::{from_avro_datum, from_value, AvroResult};
 use apache_avro::{Error, Schema};
 use bytes;
 use derivative::Derivative;
 use std::collections::HashMap;
-use std::io::Read;
 use std::time::SystemTime;
 
 use crate::helpers::ETPMetadata;
 use crate::helpers::Schemable;
+use crate::protocols::ProtocolMessage;
+use apache_avro::{from_avro_datum, from_value, AvroResult};
+use std::io::Read;
 #[derive(Debug, PartialEq, Clone, serde::Deserialize, serde::Serialize, Derivative)]
 #[serde(rename_all = "PascalCase")]
 pub struct DeleteParts {
@@ -23,17 +24,30 @@ pub struct DeleteParts {
     pub uids: HashMap<String, String>,
 }
 
-impl Schemable for DeleteParts {
-    fn avro_schema() -> Option<Schema> {
-        match Schema::parse_str(AVRO_SCHEMA) {
-            Ok(result) => Some(result),
-            Err(e) => {
-                panic!("{:?}", e);
-            }
+fn deleteparts_avro_schema() -> Option<Schema> {
+    match Schema::parse_str(AVRO_SCHEMA) {
+        Ok(result) => Some(result),
+        Err(e) => {
+            panic!("{:?}", e);
         }
     }
-    fn avro_schema_str() -> &'static str {
+}
+
+impl Schemable for DeleteParts {
+    fn avro_schema(&self) -> Option<Schema> {
+        deleteparts_avro_schema()
+    }
+    fn avro_schema_str(&self) -> &'static str {
         AVRO_SCHEMA
+    }
+}
+
+impl AvroSerializable for DeleteParts {}
+
+impl AvroDeserializable for DeleteParts {
+    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<DeleteParts> {
+        let record = from_avro_datum(&deleteparts_avro_schema().unwrap(), input, None).unwrap();
+        from_value::<DeleteParts>(&record)
     }
 }
 
@@ -53,18 +67,19 @@ impl ETPMetadata for DeleteParts {
     fn multipart_flag(&self) -> bool {
         false
     }
+}
 
-    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<DeleteParts> {
-        let record = from_avro_datum(&DeleteParts::avro_schema().unwrap(), input, None).unwrap();
-        from_value::<DeleteParts>(&record)
+impl DeleteParts {
+    pub fn as_protocol_message(&self) -> ProtocolMessage {
+        ProtocolMessage::GrowingObject_DeleteParts(self.clone())
     }
 }
 
-impl Default for DeleteParts {
+impl DeleteParts {
     /* Protocol 6, MessageType : 1 */
-    fn default() -> DeleteParts {
+    pub fn default_with_params(uri: String) -> DeleteParts {
         DeleteParts {
-            uri: "".to_string(),
+            uri,
             uids: HashMap::new(),
         }
     }

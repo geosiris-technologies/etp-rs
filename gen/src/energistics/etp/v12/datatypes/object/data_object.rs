@@ -2,15 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 #![allow(unused_imports)]
 #![allow(non_camel_case_types)]
-use crate::energistics::etp::v12::datatypes::object::resource::Resource;
-use crate::energistics::etp::v12::datatypes::uuid::{random_uuid, Uuid};
-use crate::helpers::Schemable;
 use crate::helpers::*;
 use apache_avro::{Error, Schema};
 use bytes;
 use derivative::Derivative;
 use std::collections::HashMap;
 use std::time::SystemTime;
+
+use crate::energistics::etp::v12::datatypes::object::resource::Resource;
+use crate::energistics::etp::v12::datatypes::uuid::{random_uuid, Uuid};
+use crate::helpers::Schemable;
+use apache_avro::{from_avro_datum, from_value, AvroResult};
+use std::io::Read;
 
 #[derive(Debug, PartialEq, Clone, serde::Deserialize, serde::Serialize, Derivative)]
 #[serde(rename_all = "PascalCase")]
@@ -22,25 +25,40 @@ pub struct DataObject {
     #[derivative(Default(value = r#"String::from("xml")"#))]
     pub format: String,
 
+    #[serde(with = "serde_bytes")]
     #[serde(rename = "blobId")]
     pub blob_id: Option<Uuid>,
 
+    #[serde(with = "serde_bytes")]
     #[serde(rename = "data")]
     #[derivative(Default(value = ""))]
     pub data: Vec<u8>,
 }
 
-impl Schemable for DataObject {
-    fn avro_schema() -> Option<Schema> {
-        match Schema::parse_str(AVRO_SCHEMA) {
-            Ok(result) => Some(result),
-            Err(e) => {
-                panic!("{:?}", e);
-            }
+fn dataobject_avro_schema() -> Option<Schema> {
+    match Schema::parse_str(AVRO_SCHEMA) {
+        Ok(result) => Some(result),
+        Err(e) => {
+            panic!("{:?}", e);
         }
     }
-    fn avro_schema_str() -> &'static str {
+}
+
+impl Schemable for DataObject {
+    fn avro_schema(&self) -> Option<Schema> {
+        dataobject_avro_schema()
+    }
+    fn avro_schema_str(&self) -> &'static str {
         AVRO_SCHEMA
+    }
+}
+
+impl AvroSerializable for DataObject {}
+
+impl AvroDeserializable for DataObject {
+    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<DataObject> {
+        let record = from_avro_datum(&dataobject_avro_schema().unwrap(), input, None).unwrap();
+        from_value::<DataObject>(&record)
     }
 }
 

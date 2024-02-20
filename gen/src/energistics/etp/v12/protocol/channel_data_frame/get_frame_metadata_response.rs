@@ -3,18 +3,19 @@
 #![allow(unused_imports)]
 #![allow(non_camel_case_types)]
 use crate::helpers::*;
-use apache_avro::{from_avro_datum, from_value, AvroResult};
 use apache_avro::{Error, Schema};
 use bytes;
 use derivative::Derivative;
 use std::collections::HashMap;
-use std::io::Read;
 use std::time::SystemTime;
 
 use crate::energistics::etp::v12::datatypes::channel_data::frame_channel_metadata_record::FrameChannelMetadataRecord;
 use crate::energistics::etp::v12::datatypes::channel_data::index_metadata_record::IndexMetadataRecord;
 use crate::helpers::ETPMetadata;
 use crate::helpers::Schemable;
+use crate::protocols::ProtocolMessage;
+use apache_avro::{from_avro_datum, from_value, AvroResult};
+use std::io::Read;
 
 #[derive(Debug, PartialEq, Clone, serde::Deserialize, serde::Serialize, Derivative)]
 #[serde(rename_all = "PascalCase")]
@@ -29,17 +30,35 @@ pub struct GetFrameMetadataResponse {
     pub channels: Vec<FrameChannelMetadataRecord>,
 }
 
-impl Schemable for GetFrameMetadataResponse {
-    fn avro_schema() -> Option<Schema> {
-        match Schema::parse_str(AVRO_SCHEMA) {
-            Ok(result) => Some(result),
-            Err(e) => {
-                panic!("{:?}", e);
-            }
+fn getframemetadataresponse_avro_schema() -> Option<Schema> {
+    match Schema::parse_str(AVRO_SCHEMA) {
+        Ok(result) => Some(result),
+        Err(e) => {
+            panic!("{:?}", e);
         }
     }
-    fn avro_schema_str() -> &'static str {
+}
+
+impl Schemable for GetFrameMetadataResponse {
+    fn avro_schema(&self) -> Option<Schema> {
+        getframemetadataresponse_avro_schema()
+    }
+    fn avro_schema_str(&self) -> &'static str {
         AVRO_SCHEMA
+    }
+}
+
+impl AvroSerializable for GetFrameMetadataResponse {}
+
+impl AvroDeserializable for GetFrameMetadataResponse {
+    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<GetFrameMetadataResponse> {
+        let record = from_avro_datum(
+            &getframemetadataresponse_avro_schema().unwrap(),
+            input,
+            None,
+        )
+        .unwrap();
+        from_value::<GetFrameMetadataResponse>(&record)
     }
 }
 
@@ -59,23 +78,19 @@ impl ETPMetadata for GetFrameMetadataResponse {
     fn multipart_flag(&self) -> bool {
         true
     }
+}
 
-    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<GetFrameMetadataResponse> {
-        let record = from_avro_datum(
-            &GetFrameMetadataResponse::avro_schema().unwrap(),
-            input,
-            None,
-        )
-        .unwrap();
-        from_value::<GetFrameMetadataResponse>(&record)
+impl GetFrameMetadataResponse {
+    pub fn as_protocol_message(&self) -> ProtocolMessage {
+        ProtocolMessage::ChannelDataFrame_GetFrameMetadataResponse(self.clone())
     }
 }
 
-impl Default for GetFrameMetadataResponse {
+impl GetFrameMetadataResponse {
     /* Protocol 2, MessageType : 2 */
-    fn default() -> GetFrameMetadataResponse {
+    pub fn default_with_params(uri: String) -> GetFrameMetadataResponse {
         GetFrameMetadataResponse {
-            uri: "".to_string(),
+            uri,
             indexes: vec![],
             channels: vec![],
         }

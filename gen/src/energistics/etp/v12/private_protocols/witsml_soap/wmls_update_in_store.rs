@@ -3,16 +3,17 @@
 #![allow(unused_imports)]
 #![allow(non_camel_case_types)]
 use crate::helpers::*;
-use apache_avro::{from_avro_datum, from_value, AvroResult};
 use apache_avro::{Error, Schema};
 use bytes;
 use derivative::Derivative;
 use std::collections::HashMap;
-use std::io::Read;
 use std::time::SystemTime;
 
 use crate::helpers::ETPMetadata;
 use crate::helpers::Schemable;
+use crate::protocols::ProtocolMessage;
+use apache_avro::{from_avro_datum, from_value, AvroResult};
+use std::io::Read;
 #[derive(Debug, PartialEq, Clone, serde::Deserialize, serde::Serialize, Derivative)]
 #[serde(rename_all = "PascalCase")]
 pub struct WMLS_UpdateInStore {
@@ -29,17 +30,31 @@ pub struct WMLS_UpdateInStore {
     pub capabilities_in: String,
 }
 
-impl Schemable for WMLS_UpdateInStore {
-    fn avro_schema() -> Option<Schema> {
-        match Schema::parse_str(AVRO_SCHEMA) {
-            Ok(result) => Some(result),
-            Err(e) => {
-                panic!("{:?}", e);
-            }
+fn wmls_updateinstore_avro_schema() -> Option<Schema> {
+    match Schema::parse_str(AVRO_SCHEMA) {
+        Ok(result) => Some(result),
+        Err(e) => {
+            panic!("{:?}", e);
         }
     }
-    fn avro_schema_str() -> &'static str {
+}
+
+impl Schemable for WMLS_UpdateInStore {
+    fn avro_schema(&self) -> Option<Schema> {
+        wmls_updateinstore_avro_schema()
+    }
+    fn avro_schema_str(&self) -> &'static str {
         AVRO_SCHEMA
+    }
+}
+
+impl AvroSerializable for WMLS_UpdateInStore {}
+
+impl AvroDeserializable for WMLS_UpdateInStore {
+    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<WMLS_UpdateInStore> {
+        let record =
+            from_avro_datum(&wmls_updateinstore_avro_schema().unwrap(), input, None).unwrap();
+        from_value::<WMLS_UpdateInStore>(&record)
     }
 }
 
@@ -59,11 +74,11 @@ impl ETPMetadata for WMLS_UpdateInStore {
     fn multipart_flag(&self) -> bool {
         false
     }
+}
 
-    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<WMLS_UpdateInStore> {
-        let record =
-            from_avro_datum(&WMLS_UpdateInStore::avro_schema().unwrap(), input, None).unwrap();
-        from_value::<WMLS_UpdateInStore>(&record)
+impl WMLS_UpdateInStore {
+    pub fn as_protocol_message(&self) -> ProtocolMessage {
+        ProtocolMessage::WitsmlSoap_WMLS_UpdateInStore(self.clone())
     }
 }
 

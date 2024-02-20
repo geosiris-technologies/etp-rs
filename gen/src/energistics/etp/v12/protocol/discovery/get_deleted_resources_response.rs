@@ -3,17 +3,18 @@
 #![allow(unused_imports)]
 #![allow(non_camel_case_types)]
 use crate::helpers::*;
-use apache_avro::{from_avro_datum, from_value, AvroResult};
 use apache_avro::{Error, Schema};
 use bytes;
 use derivative::Derivative;
 use std::collections::HashMap;
-use std::io::Read;
 use std::time::SystemTime;
 
 use crate::energistics::etp::v12::datatypes::object::deleted_resource::DeletedResource;
 use crate::helpers::ETPMetadata;
 use crate::helpers::Schemable;
+use crate::protocols::ProtocolMessage;
+use apache_avro::{from_avro_datum, from_value, AvroResult};
+use std::io::Read;
 
 #[derive(Debug, PartialEq, Clone, serde::Deserialize, serde::Serialize, Derivative)]
 #[serde(rename_all = "PascalCase")]
@@ -23,17 +24,35 @@ pub struct GetDeletedResourcesResponse {
     pub deleted_resources: Vec<DeletedResource>,
 }
 
-impl Schemable for GetDeletedResourcesResponse {
-    fn avro_schema() -> Option<Schema> {
-        match Schema::parse_str(AVRO_SCHEMA) {
-            Ok(result) => Some(result),
-            Err(e) => {
-                panic!("{:?}", e);
-            }
+fn getdeletedresourcesresponse_avro_schema() -> Option<Schema> {
+    match Schema::parse_str(AVRO_SCHEMA) {
+        Ok(result) => Some(result),
+        Err(e) => {
+            panic!("{:?}", e);
         }
     }
-    fn avro_schema_str() -> &'static str {
+}
+
+impl Schemable for GetDeletedResourcesResponse {
+    fn avro_schema(&self) -> Option<Schema> {
+        getdeletedresourcesresponse_avro_schema()
+    }
+    fn avro_schema_str(&self) -> &'static str {
         AVRO_SCHEMA
+    }
+}
+
+impl AvroSerializable for GetDeletedResourcesResponse {}
+
+impl AvroDeserializable for GetDeletedResourcesResponse {
+    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<GetDeletedResourcesResponse> {
+        let record = from_avro_datum(
+            &getdeletedresourcesresponse_avro_schema().unwrap(),
+            input,
+            None,
+        )
+        .unwrap();
+        from_value::<GetDeletedResourcesResponse>(&record)
     }
 }
 
@@ -53,15 +72,11 @@ impl ETPMetadata for GetDeletedResourcesResponse {
     fn multipart_flag(&self) -> bool {
         true
     }
+}
 
-    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<GetDeletedResourcesResponse> {
-        let record = from_avro_datum(
-            &GetDeletedResourcesResponse::avro_schema().unwrap(),
-            input,
-            None,
-        )
-        .unwrap();
-        from_value::<GetDeletedResourcesResponse>(&record)
+impl GetDeletedResourcesResponse {
+    pub fn as_protocol_message(&self) -> ProtocolMessage {
+        ProtocolMessage::Discovery_GetDeletedResourcesResponse(self.clone())
     }
 }
 

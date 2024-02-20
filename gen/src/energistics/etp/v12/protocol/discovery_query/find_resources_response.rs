@@ -3,17 +3,18 @@
 #![allow(unused_imports)]
 #![allow(non_camel_case_types)]
 use crate::helpers::*;
-use apache_avro::{from_avro_datum, from_value, AvroResult};
 use apache_avro::{Error, Schema};
 use bytes;
 use derivative::Derivative;
 use std::collections::HashMap;
-use std::io::Read;
 use std::time::SystemTime;
 
 use crate::energistics::etp::v12::datatypes::object::resource::Resource;
 use crate::helpers::ETPMetadata;
 use crate::helpers::Schemable;
+use crate::protocols::ProtocolMessage;
+use apache_avro::{from_avro_datum, from_value, AvroResult};
+use std::io::Read;
 
 #[derive(Debug, PartialEq, Clone, serde::Deserialize, serde::Serialize, Derivative)]
 #[serde(rename_all = "PascalCase")]
@@ -26,17 +27,31 @@ pub struct FindResourcesResponse {
     pub server_sort_order: String,
 }
 
-impl Schemable for FindResourcesResponse {
-    fn avro_schema() -> Option<Schema> {
-        match Schema::parse_str(AVRO_SCHEMA) {
-            Ok(result) => Some(result),
-            Err(e) => {
-                panic!("{:?}", e);
-            }
+fn findresourcesresponse_avro_schema() -> Option<Schema> {
+    match Schema::parse_str(AVRO_SCHEMA) {
+        Ok(result) => Some(result),
+        Err(e) => {
+            panic!("{:?}", e);
         }
     }
-    fn avro_schema_str() -> &'static str {
+}
+
+impl Schemable for FindResourcesResponse {
+    fn avro_schema(&self) -> Option<Schema> {
+        findresourcesresponse_avro_schema()
+    }
+    fn avro_schema_str(&self) -> &'static str {
         AVRO_SCHEMA
+    }
+}
+
+impl AvroSerializable for FindResourcesResponse {}
+
+impl AvroDeserializable for FindResourcesResponse {
+    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<FindResourcesResponse> {
+        let record =
+            from_avro_datum(&findresourcesresponse_avro_schema().unwrap(), input, None).unwrap();
+        from_value::<FindResourcesResponse>(&record)
     }
 }
 
@@ -56,11 +71,11 @@ impl ETPMetadata for FindResourcesResponse {
     fn multipart_flag(&self) -> bool {
         true
     }
+}
 
-    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<FindResourcesResponse> {
-        let record =
-            from_avro_datum(&FindResourcesResponse::avro_schema().unwrap(), input, None).unwrap();
-        from_value::<FindResourcesResponse>(&record)
+impl FindResourcesResponse {
+    pub fn as_protocol_message(&self) -> ProtocolMessage {
+        ProtocolMessage::DiscoveryQuery_FindResourcesResponse(self.clone())
     }
 }
 

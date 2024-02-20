@@ -3,17 +3,18 @@
 #![allow(unused_imports)]
 #![allow(non_camel_case_types)]
 use crate::helpers::*;
-use apache_avro::{from_avro_datum, from_value, AvroResult};
 use apache_avro::{Error, Schema};
 use bytes;
 use derivative::Derivative;
 use std::collections::HashMap;
-use std::io::Read;
 use std::time::SystemTime;
 
 use crate::energistics::etp::v12::datatypes::channel_data::channel_subscribe_info::ChannelSubscribeInfo;
 use crate::helpers::ETPMetadata;
 use crate::helpers::Schemable;
+use crate::protocols::ProtocolMessage;
+use apache_avro::{from_avro_datum, from_value, AvroResult};
+use std::io::Read;
 
 #[derive(Debug, PartialEq, Clone, serde::Deserialize, serde::Serialize, Derivative)]
 #[serde(rename_all = "PascalCase")]
@@ -22,17 +23,31 @@ pub struct SubscribeChannels {
     pub channels: HashMap<String, ChannelSubscribeInfo>,
 }
 
-impl Schemable for SubscribeChannels {
-    fn avro_schema() -> Option<Schema> {
-        match Schema::parse_str(AVRO_SCHEMA) {
-            Ok(result) => Some(result),
-            Err(e) => {
-                panic!("{:?}", e);
-            }
+fn subscribechannels_avro_schema() -> Option<Schema> {
+    match Schema::parse_str(AVRO_SCHEMA) {
+        Ok(result) => Some(result),
+        Err(e) => {
+            panic!("{:?}", e);
         }
     }
-    fn avro_schema_str() -> &'static str {
+}
+
+impl Schemable for SubscribeChannels {
+    fn avro_schema(&self) -> Option<Schema> {
+        subscribechannels_avro_schema()
+    }
+    fn avro_schema_str(&self) -> &'static str {
         AVRO_SCHEMA
+    }
+}
+
+impl AvroSerializable for SubscribeChannels {}
+
+impl AvroDeserializable for SubscribeChannels {
+    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<SubscribeChannels> {
+        let record =
+            from_avro_datum(&subscribechannels_avro_schema().unwrap(), input, None).unwrap();
+        from_value::<SubscribeChannels>(&record)
     }
 }
 
@@ -52,11 +67,11 @@ impl ETPMetadata for SubscribeChannels {
     fn multipart_flag(&self) -> bool {
         false
     }
+}
 
-    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<SubscribeChannels> {
-        let record =
-            from_avro_datum(&SubscribeChannels::avro_schema().unwrap(), input, None).unwrap();
-        from_value::<SubscribeChannels>(&record)
+impl SubscribeChannels {
+    pub fn as_protocol_message(&self) -> ProtocolMessage {
+        ProtocolMessage::ChannelSubscribe_SubscribeChannels(self.clone())
     }
 }
 

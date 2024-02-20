@@ -2,15 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 #![allow(unused_imports)]
 #![allow(non_camel_case_types)]
-use crate::energistics::etp::v12::datatypes::data_value::DataValue;
-use crate::energistics::etp::v12::datatypes::object::active_status_kind::ActiveStatusKind;
-use crate::helpers::Schemable;
 use crate::helpers::*;
 use apache_avro::{Error, Schema};
 use bytes;
 use derivative::Derivative;
 use std::collections::HashMap;
 use std::time::SystemTime;
+
+use crate::energistics::etp::v12::datatypes::data_value::DataValue;
+use crate::energistics::etp::v12::datatypes::object::active_status_kind::ActiveStatusKind;
+use crate::helpers::Schemable;
+use apache_avro::{from_avro_datum, from_value, AvroResult};
+use std::io::Read;
 
 #[derive(Debug, PartialEq, Clone, serde::Deserialize, serde::Serialize, Derivative)]
 #[serde(rename_all = "PascalCase")]
@@ -48,23 +51,37 @@ pub struct Resource {
     pub custom_data: HashMap<String, DataValue>,
 }
 
-impl Schemable for Resource {
-    fn avro_schema() -> Option<Schema> {
-        match Schema::parse_str(AVRO_SCHEMA) {
-            Ok(result) => Some(result),
-            Err(e) => {
-                panic!("{:?}", e);
-            }
+fn resource_avro_schema() -> Option<Schema> {
+    match Schema::parse_str(AVRO_SCHEMA) {
+        Ok(result) => Some(result),
+        Err(e) => {
+            panic!("{:?}", e);
         }
     }
-    fn avro_schema_str() -> &'static str {
+}
+
+impl Schemable for Resource {
+    fn avro_schema(&self) -> Option<Schema> {
+        resource_avro_schema()
+    }
+    fn avro_schema_str(&self) -> &'static str {
         AVRO_SCHEMA
+    }
+}
+
+impl AvroSerializable for Resource {}
+
+impl AvroDeserializable for Resource {
+    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<Resource> {
+        let record = from_avro_datum(&resource_avro_schema().unwrap(), input, None).unwrap();
+        from_value::<Resource>(&record)
     }
 }
 
 impl Resource {
     /* Protocol , MessageType :  */
     pub fn default_with_params(
+        uri: String,
         source_count: Option<i32>,
         target_count: Option<i32>,
         last_changed: i64,
@@ -73,7 +90,7 @@ impl Resource {
         active_status: ActiveStatusKind,
     ) -> Resource {
         Resource {
-            uri: "".to_string(),
+            uri,
             alternate_uris: vec![],
             name: "".to_string(),
             source_count,

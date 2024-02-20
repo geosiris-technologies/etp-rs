@@ -2,6 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 #![allow(unused_imports)]
 #![allow(non_camel_case_types)]
+use crate::helpers::*;
+use apache_avro::{Error, Schema};
+use bytes;
+use derivative::Derivative;
+use std::collections::HashMap;
+use std::time::SystemTime;
+
 use crate::energistics::etp::v12::datatypes::array_of_boolean::ArrayOfBoolean;
 use crate::energistics::etp::v12::datatypes::array_of_double::ArrayOfDouble;
 use crate::energistics::etp::v12::datatypes::array_of_float::ArrayOfFloat;
@@ -9,12 +16,8 @@ use crate::energistics::etp::v12::datatypes::array_of_int::ArrayOfInt;
 use crate::energistics::etp::v12::datatypes::array_of_long::ArrayOfLong;
 use crate::energistics::etp::v12::datatypes::array_of_string::ArrayOfString;
 use crate::helpers::Schemable;
-use crate::helpers::*;
-use apache_avro::{Error, Schema};
-use bytes;
-use derivative::Derivative;
-use std::collections::HashMap;
-use std::time::SystemTime;
+use apache_avro::{from_avro_datum, from_value, AvroResult};
+use std::io::Read;
 #[derive(Debug, PartialEq, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum UnionArrayOfBooleanArrayOfIntArrayOfLongArrayOfFloatArrayOfDoubleArrayOfStringBytes {
@@ -34,17 +37,30 @@ pub struct AnyArray {
     pub item: UnionArrayOfBooleanArrayOfIntArrayOfLongArrayOfFloatArrayOfDoubleArrayOfStringBytes,
 }
 
-impl Schemable for AnyArray {
-    fn avro_schema() -> Option<Schema> {
-        match Schema::parse_str(AVRO_SCHEMA) {
-            Ok(result) => Some(result),
-            Err(e) => {
-                panic!("{:?}", e);
-            }
+fn anyarray_avro_schema() -> Option<Schema> {
+    match Schema::parse_str(AVRO_SCHEMA) {
+        Ok(result) => Some(result),
+        Err(e) => {
+            panic!("{:?}", e);
         }
     }
-    fn avro_schema_str() -> &'static str {
+}
+
+impl Schemable for AnyArray {
+    fn avro_schema(&self) -> Option<Schema> {
+        anyarray_avro_schema()
+    }
+    fn avro_schema_str(&self) -> &'static str {
         AVRO_SCHEMA
+    }
+}
+
+impl AvroSerializable for AnyArray {}
+
+impl AvroDeserializable for AnyArray {
+    fn avro_deserialize<R: Read>(input: &mut R) -> AvroResult<AnyArray> {
+        let record = from_avro_datum(&anyarray_avro_schema().unwrap(), input, None).unwrap();
+        from_value::<AnyArray>(&record)
     }
 }
 
