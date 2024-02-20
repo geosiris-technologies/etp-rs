@@ -1,0 +1,26 @@
+[package]
+name = "etptypes"
+version = "1.0.1+1.2"
+edition = "2021"
+authors = [
+	"Lionel Untereiner <lionel.untereiner@geosiris.com>", 
+    "Valentin Gauthier <valentin.gauthier@geosiris.com>"
+]
+categories = ["network-programming", "web-programming::websocket", "science"]
+description = "Energistics Transport Protocol (ETP) Message types"
+documentation = "https://github.com/geosiris-technologies/etptypes-rs/wiki"
+homepage = "https://github.com/geosiris-technologies/etptypes-rs"
+keywords = ["etp", "energistics"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/geosiris-technologies/etptypes-rs"
+
+[dependencies]
+serde_bytes = { git = "https://github.com/markfarnan/bytes", branch = "etp-working", version = "0.11.8" }
+apache-avro = { git = "https://github.com/markfarnan/avro", branch = "etp-working", version = "0.15.0" }
+bytes = "1.4.0"
+derivative = "2.2.0"
+serde = { version = "1.0.151", features = ["derive"] }
+serde_json = "1.0.105"
+uuid = { version = "1.4.1", features = ["v4", "serde"]}
+enum_dispatch = "0.3.12"
