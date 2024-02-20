@@ -7,8 +7,8 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.4.5", features = ["derive"] }
-etpproto = { git = "https://github.com/geosiris-technologies/etpproto-rs/", branch = "ci"}
-etptypes = { git = "https://github.com/geosiris-technologies/etptypes-rs/", branch = "avro-serialization"}
+etpproto = { path = "../etpproto-rs" }
+etptypes = { path = "../etptypes-rs"}
 futures = "0.3.28"
 futures-util = "0.3.28"
 http-auth-basic = "0.3.3"

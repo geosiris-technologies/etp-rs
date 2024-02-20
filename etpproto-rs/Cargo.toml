@@ -19,10 +19,10 @@ repository = "https://github.com/geosiris-technologies/etpproto-rs"
 
 [dependencies]
 # etptypes = "1.0.0"
-etptypes = { git = "https://github.com/geosiris-technologies/etptypes-rs/", branch = "avro-serialization"}
+etptypes = { path = "../etptypes-rs" }
 flate2 = "1.0.27"
 fmt = "0.1.0"
 regex = "1.9.5"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0.105"
-uuid = { version = "1.4.1", features = ["v4", "serde"]}
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true

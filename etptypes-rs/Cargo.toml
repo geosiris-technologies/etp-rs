@@ -20,7 +20,7 @@ serde_bytes = { git = "https://github.com/markfarnan/bytes", branch = "etp-worki
 apache-avro = { git = "https://github.com/markfarnan/avro", branch = "etp-working", version = "0.15.0" }
 bytes = "1.4.0"
 derivative = "2.2.0"
-serde = { version = "1.0.151", features = ["derive"] }
-serde_json = "1.0.105"
-uuid = { version = "1.4.1", features = ["v4", "serde"]}
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true 
 enum_dispatch = "0.3.12"

@@ -121,7 +121,7 @@ async fn receive(
                         log(&"input Message: ".to_string(), &args.log_file);
                         let decoded_msg = std::panic::catch_unwind(|| decode_message(&b));
                         if let Ok(decoded) = decoded_msg {
-                            print_protocol_message(decoded.1.unwrap(), &args);
+                            print_protocol_message(decoded.body.unwrap(), &args);
                         } else if let Err(not_decoded) = decoded_msg {
                             log(
                                 &format!(
