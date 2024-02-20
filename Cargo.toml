@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+    "etptypes-rs",
+    "etpproto-rs",
+    "etpclient-rs",
+]
