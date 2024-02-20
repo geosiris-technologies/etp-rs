@@ -1,0 +1,18 @@
+[package]
+name = "etpclient-rs"
+version = "1.0.0+1.2"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = { version = "4.4.5", features = ["derive"] }
+etpproto = { git = "https://github.com/geosiris-technologies/etpproto-rs/", branch = "ci"}
+etptypes = { git = "https://github.com/geosiris-technologies/etptypes-rs/", branch = "avro-serialization"}
+futures = "0.3.28"
+futures-util = "0.3.28"
+http-auth-basic = "0.3.3"
+log = "0.4.20"
+tokio = {version="1.32.0", features = ["macros", "rt-multi-thread"]}
+tokio-tungstenite = "0.20.1"
+tungstenite = "0.20.1"
